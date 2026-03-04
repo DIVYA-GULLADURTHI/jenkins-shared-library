@@ -175,6 +175,77 @@ def call(Map configMap){
                     }
                 }
                 
+            } 
+            stage('Check Scan Results') {
+                steps {
+                    script {
+                        withAWS(credentials: 'aws-credits', region: 'us-east-1') {
+
+                            // 1. Start scan (safe even if scan-on-push is enabled)
+                            sh """
+                            aws ecr start-image-scan \
+                                --repository-name ${PROJECT}/${COMPONENT} \
+                                --image-id imageTag=${appversion} \
+                                --region ${REGION} || true
+                            """
+
+                            // 2. Wait for scan to complete (CLI-safe)
+                            timeout(time: 5, unit: 'MINUTES') {
+                                waitUntil {
+                                    def status = sh(
+                                        script: """
+                                        aws ecr describe-image-scan-findings \
+                                            --repository-name ${PROJECT}/${COMPONENT} \
+                                            --image-id imageTag=${appversion} \
+                                            --region ${REGION} \
+                                            --query 'imageScanStatus.status' \
+                                            --output text 2>/dev/null || echo NOT_READY
+                                        """,
+                                        returnStdout: true
+                                    ).trim()
+
+                                    echo "ECR scan status: ${status}"
+
+                                    if (status == "FAILED") {
+                                        error("ECR image scan failed")
+                                    }
+
+                                    return status == "COMPLETE"
+                                }
+                            }
+
+                            // 3. Fetch findings (now guaranteed to exist)
+                            def findings = sh(
+                                script: """
+                                aws ecr describe-image-scan-findings \
+                                    --repository-name ${PROJECT}/${COMPONENT} \
+                                    --image-id imageTag=${appversion} \
+                                    --region ${REGION} \
+                                    --output json
+                                """,
+                                returnStdout: true
+                            ).trim()
+
+                            def json = readJSON text: findings
+
+                            // 4. Filter HIGH / CRITICAL
+                            def highCritical = json.imageScanFindings.findings.findAll {
+                                it.severity in ["HIGH", "CRITICAL"]
+                            }
+
+                            // 5. Fail only if needed
+                            if (highCritical.size() > 0) {
+                                echo "❌ Found ${highCritical.size()} HIGH/CRITICAL vulnerabilities!"
+                                highCritical.each {
+                                    echo "- ${it.name} (${it.severity})"
+                                }
+                                error("Build failed due to ECR vulnerabilities")
+                            } else {
+                                echo "✅ No HIGH/CRITICAL vulnerabilities found."
+                            }
+                        }
+                    }
+                }
             }
 
             post { 
