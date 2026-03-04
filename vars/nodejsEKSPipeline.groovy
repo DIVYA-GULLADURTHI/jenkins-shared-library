@@ -200,13 +200,14 @@
                 }
                 steps {
                     script {
-                    build job: 'catalogue-cd',
+                        //build job: 'catalogue-cd',
+                        build job: "../${COMPONENT}-cd",
                         parameters: [
                             string(name: 'appversion', value: "${appversion}"),
                             string(name: 'deploy_to', value: 'dev')
                         ],
-                    propagate: false, // even sg fails VPC will not be effected
-                    wait: false // VPC will not wait for SG pipeline completion 
+                        propagate: false, // even sg fails VPC will not be effected
+                        wait: false // VPC will not wait for SG pipeline completion 
                     }
                 }
             } 
