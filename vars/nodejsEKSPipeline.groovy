@@ -103,7 +103,7 @@ def call(Map configMap){
             stage('Docker Build') {
                 steps {
                     script {
-                        withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                        withAWS(credentials: 'aws-credits', region: 'us-east-1') {
                             sh """
                                 aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com
                                 docker build -t ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${PROJECT}/${COMPONENT}:${appVersion} .
@@ -117,7 +117,7 @@ def call(Map configMap){
             stage('Check Scan Results') {
                 steps {
                     script {
-                        withAWS(credentials: 'aws-creds', region: 'us-east-1') {
+                        withAWS(credentials: 'aws-credits', region: 'us-east-1') {
                         // Fetch scan findings
                             def findings = sh(
                                 script: """
