@@ -101,15 +101,24 @@ def call(Map configMap){
                 }
             }
             stage('Docker Build') {
-                steps {
-                    script {
-                        withAWS(credentials: 'aws-credits', region: 'us-east-1') {
-                            sh """
-                                aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com
-                                docker build -t ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${PROJECT}/${COMPONENT}:${appVersion} .
-                                docker push ${ACC_ID}.dkr.ecr.us-east-1.amazonaws.com/${PROJECT}/${COMPONENT}:${appVersion}
-                                #aws ecr wait image-scan-complete --repository-name ${PROJECT}/${COMPONENT} --image-id imageTag=${appVersion} --region ${REGION}
-                            """
+            environment {
+                DOCKER_BUILDKIT = '0'
+            }
+            steps {
+                script {
+                    withAWS(credentials: 'aws-credits', region: 'us-east-1') {
+                        sh """
+                        aws ecr get-login-password --region ${REGION} | \
+                            docker login --username AWS --password-stdin \
+                            ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com
+
+                        docker build \
+                            --platform linux/amd64 \
+                            -t ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com/${PROJECT}/${COMPONENT}:${appversion} .
+
+                        docker push \
+                            ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com/${PROJECT}/${COMPONENT}:${appversion}
+                        """
                         }
                     }
                 }
