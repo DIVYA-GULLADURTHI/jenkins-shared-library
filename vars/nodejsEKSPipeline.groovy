@@ -46,26 +46,26 @@ def call(Map configMap){
                     }
                 }
             }
-            /* stage('Sonar Scan') {
-                environment {
-                    scannerHome = tool 'sonar-7.2'
-                }
-                steps {
-                    script {
-                    // Sonar Server envrionment
-                    withSonarQubeEnv(installationName: 'sonar-7.2') {
-                            sh "${scannerHome}/bin/sonar-scanner"
-                    }
-                    }
-                }
-            } */
-            // Enable webhook in sonarqube server and wait for results
-            /* stage("Quality Gate") {
-                steps {
-                    timeout(time: 1, unit: 'HOURS') {
-                    waitForQualityGate abortPipeline: true }
-                }
-            } 
+            // stage('Sonar Scan') {
+            //     environment {
+            //         scannerHome = tool 'sonar-7.2'
+            //     }
+            //     steps {
+            //         script {
+            //         // Sonar Server envrionment
+            //         withSonarQubeEnv(installationName: 'sonar-7.2') {
+            //                 sh "${scannerHome}/bin/sonar-scanner"
+            //         }
+            //         }
+            //     }
+            // } 
+            // // Enable webhook in sonarqube server and wait for results
+            // stage("Quality Gate") {
+            //     steps {
+            //         timeout(time: 1, unit: 'HOURS') {
+            //         waitForQualityGate abortPipeline: true }
+            //     }
+            // } 
             stage('Check Dependabot Alerts') {
                 environment { 
                     GITHUB_TOKEN = credentials('github-token')
@@ -99,7 +99,7 @@ def call(Map configMap){
                         }
                     }
                 }
-            }*/
+            }
             stage('Docker Build') {
                 steps {
                     script {
@@ -114,7 +114,7 @@ def call(Map configMap){
                     }
                 }
             }
-            /* stage('Check Scan Results') {
+            stage('Check Scan Results') {
                 steps {
                     script {
                         withAWS(credentials: 'aws-creds', region: 'us-east-1') {
@@ -147,7 +147,7 @@ def call(Map configMap){
                         }
                     }
                 }
-            } */
+            } 
             stage('Trigger Deploy') {
                 when{
                     expression { params.deploy }
