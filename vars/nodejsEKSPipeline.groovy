@@ -101,93 +101,93 @@ def call(Map configMap){
             //     }
             // }
             stage('Docker Build') {
-            environment {
-                DOCKER_BUILDKIT = '0'
-            }
-            steps {
-                script {
-                    withAWS(credentials: 'aws-credits', region: 'us-east-1') {
-                        sh """
-                        aws ecr get-login-password --region ${REGION} | \
-                            docker login --username AWS --password-stdin \
-                            ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com
-
-                        docker build \
-                            --platform linux/amd64 \
-                            -t ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com/${PROJECT}/${COMPONENT}:${appversion} .
-
-                        docker push \
-                            ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com/${PROJECT}/${COMPONENT}:${appversion}
-                        """
-                        }
+                environment {
+                    DOCKER_BUILDKIT = '0'
                     }
-                }
-            }
-            stage('Check Scan Results') {
                 steps {
                     script {
                         withAWS(credentials: 'aws-credits', region: 'us-east-1') {
-                        // Fetch scan findings
-                            def findings = sh(
-                                script: """
-                                    aws ecr describe-image-scan-findings \
-                                    --repository-name ${PROJECT}/${COMPONENT} \
-                                    --image-id imageTag=${appVersion} \
-                                    --region ${REGION} \
-                                    --output json
-                                """,
-                                returnStdout: true
-                            ).trim()
+                            sh """
+                            aws ecr get-login-password --region ${REGION} | \
+                                docker login --username AWS --password-stdin \
+                                ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com
 
-                            // Parse JSON
-                            def json = readJSON text: findings
+                            docker build \
+                                --platform linux/amd64 \
+                                -t ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com/${PROJECT}/${COMPONENT}:${appversion} .
 
-                            def highCritical = json.imageScanFindings.findings.findAll {
-                                it.severity == "HIGH" || it.severity == "CRITICAL"
-                            }
-
-                            if (highCritical.size() > 0) {
-                                echo "❌ Found ${highCritical.size()} HIGH/CRITICAL vulnerabilities!"
-                                currentBuild.result = 'FAILURE'
-                                error("Build failed due to vulnerabilities")
-                            } else {
-                                echo "✅ No HIGH/CRITICAL vulnerabilities found."
+                            docker push \
+                                ${ACC_ID}.dkr.ecr.${REGION}.amazonaws.com/${PROJECT}/${COMPONENT}:${appversion}
+                            """
                             }
                         }
                     }
                 }
-            } 
-            stage('Trigger Deploy') {
-                when{
-                    expression { params.deploy }
-                }
-                steps {
-                    script {
-                        //build job: 'catalogue-cd',
-                        build job: "../${COMPONENT}-cd",
-                        parameters: [
-                            string(name: 'appVersion', value: "${appVersion}"),
-                            string(name: 'deploy_to', value: 'dev')
-                        ],
-                        propagate: false,  // even SG fails VPC will not be effected
-                        wait: false // VPC will not wait for SG pipeline completion
+                stage('Check Scan Results') {
+                    steps {
+                        script {
+                            withAWS(credentials: 'aws-credits', region: 'us-east-1') {
+                            // Fetch scan findings
+                                def findings = sh(
+                                    script: """
+                                        aws ecr describe-image-scan-findings \
+                                        --repository-name ${PROJECT}/${COMPONENT} \
+                                        --image-id imageTag=${appVersion} \
+                                        --region ${REGION} \
+                                        --output json
+                                    """,
+                                    returnStdout: true
+                                ).trim()
+
+                                // Parse JSON
+                                def json = readJSON text: findings
+
+                                def highCritical = json.imageScanFindings.findings.findAll {
+                                    it.severity == "HIGH" || it.severity == "CRITICAL"
+                                }
+
+                                if (highCritical.size() > 0) {
+                                    echo "❌ Found ${highCritical.size()} HIGH/CRITICAL vulnerabilities!"
+                                    currentBuild.result = 'FAILURE'
+                                    error("Build failed due to vulnerabilities")
+                                } else {
+                                    echo "✅ No HIGH/CRITICAL vulnerabilities found."
+                                }
+                            }
+                        }
+                    }
+                } 
+                stage('Trigger Deploy') {
+                    when{
+                        expression { params.deploy }
+                    }
+                    steps {
+                        script {
+                            //build job: 'catalogue-cd',
+                            build job: "../${COMPONENT}-cd",
+                            parameters: [
+                                string(name: 'appVersion', value: "${appVersion}"),
+                                string(name: 'deploy_to', value: 'dev')
+                            ],
+                            propagate: false,  // even SG fails VPC will not be effected
+                            wait: false // VPC will not wait for SG pipeline completion
+                        }
                     }
                 }
+                
             }
-            
-        }
 
-        post { 
-            always { 
-                echo 'I will always say Hello again!'
-                deleteDir()
-            }
-            success { 
-                echo 'Hello Success'
-            }
-            failure { 
-                echo 'Hello Failure'
+            post { 
+                always { 
+                    echo 'I will always say Hello again!'
+                    deleteDir()
+                }
+                success { 
+                    echo 'Hello Success'
+                }
+                failure { 
+                    echo 'Hello Failure'
+                }
             }
         }
     }
-}
