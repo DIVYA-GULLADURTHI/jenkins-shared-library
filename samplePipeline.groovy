@@ -1,4 +1,0 @@
-def call(Map configMap){
-    
-    
-        }
